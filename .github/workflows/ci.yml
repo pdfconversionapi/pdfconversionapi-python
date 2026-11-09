@@ -15,14 +15,17 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         include:
           - os: macos-latest
             python: "3.13"
           - os: windows-latest
             python: "3.13"
-          # The oldest httpx the package allows.
-          - os: ubuntu-latest
+          # Python 3.9 isn't available for the newest Ubuntu runners, so it runs on 22.04: once with
+          # the newest httpx and once with the oldest the package allows.
+          - os: ubuntu-22.04
+            python: "3.9"
+          - os: ubuntu-22.04
             python: "3.9"
             httpx: "0.23.0"
     env:
