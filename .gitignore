@@ -1,0 +1,12 @@
+.venv/
+.venvs/
+dist/
+build/
+__pycache__/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# The local test API's key, if you copy one next to the conformance suite: never commit it.
+/conformance/.local-api.env

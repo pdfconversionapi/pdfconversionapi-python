@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }} on ${{ matrix.os }}${{ matrix.httpx && format(' (httpx {0})', matrix.httpx) || '' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: macos-latest
+            python: "3.13"
+          - os: windows-latest
+            python: "3.13"
+          # The oldest httpx the package allows.
+          - os: ubuntu-latest
+            python: "3.9"
+            httpx: "0.23.0"
+    env:
+      # The shared conformance suite bundled in conformance/; fail instead of skipping without it.
+      PDFCONVERSIONAPI_CONFORMANCE_DIR: ${{ github.workspace }}/conformance
+      PDFCONVERSIONAPI_REQUIRE_CONFORMANCE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check that the conformance suite is in the repository
+        shell: bash
+        run: |
+          test -f conformance/cases.json && test -f conformance/mock-server.mjs || {
+            echo "::error::conformance/ is missing: this repository keeps a copy of the shared test suite (https://github.com/pdfconversionapi/sdk-conformance) there"
+            exit 1
+          }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          allow-prereleases: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest anyio
+      - name: Pin the oldest httpx
+        if: matrix.httpx
+        run: python -m pip install "httpx==${{ matrix.httpx }}"
+      - name: Unit, conformance and README tests
+        run: python -m pytest -q
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: python -m pip install -e . pytest anyio mypy ruff
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install build twine
+      - run: python -m build
+      - run: python -m twine check --strict dist/*
